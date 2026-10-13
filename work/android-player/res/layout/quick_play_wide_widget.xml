@@ -1,0 +1,4 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="4dp" android:background="#101720">
+ <ImageButton android:id="@+id/quick_play" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:minWidth="48dp" android:minHeight="48dp" android:background="@android:color/transparent" android:scaleType="centerInside" android:contentDescription="播放或暂停"/>
+ <ImageButton android:id="@+id/quick_open" android:layout_width="60dp" android:layout_height="match_parent" android:minHeight="48dp" android:background="@android:color/transparent" android:scaleType="centerInside" android:contentDescription="打开此播放器的控制页"/>
+</LinearLayout>

@@ -1,0 +1,3 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp" android:background="#101720">
+ <ImageButton android:id="@+id/quick_play" android:layout_width="match_parent" android:layout_height="match_parent" android:minWidth="48dp" android:minHeight="48dp" android:background="@android:color/transparent" android:scaleType="centerInside" android:contentDescription="一键播放"/>
+</FrameLayout>
