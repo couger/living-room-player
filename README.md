@@ -39,6 +39,8 @@ python tools/web-debug-toolkit.py --port 8760
 
 需要 JDK 17、Android SDK platform `android-34`、build-tools `36.0.0`，设置 `JAVA_HOME` 和 `ANDROID_SDK_ROOT` 后运行：
 
+当前 APK 构建入口面向 Windows PowerShell；尚未提供 Linux／macOS 构建脚本。
+
 ```powershell
 ./work/android-player/build.ps1
 ./work/android-diagnostics/build.ps1
