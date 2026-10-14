@@ -38,7 +38,7 @@ $sources=Get-ChildItem "$base\src" -Filter *.java -Recurse | ForEach-Object Full
 & "$jdk\bin\javac.exe" -encoding UTF-8 -source 8 -target 8 -classpath $android -d "$base\build\classes" @sources
 if($LASTEXITCODE){throw 'Java compilation failed'}
 & "$jdk\bin\jar.exe" cf "$base\build\classes.jar" -C "$base\build\classes" .
-& "$tools\d8.bat" --lib $android --min-api 26 --output "$base\build\dex" "$base\build\classes.jar"
+& "$jdk\bin\java.exe" -Xmx1024M -cp "$tools\lib\d8.jar" com.android.tools.r8.D8 --lib $android --min-api 26 --output "$base\build\dex" "$base\build\classes.jar"
 if($LASTEXITCODE){throw 'DEX failed'}
 & "$tools\aapt2.exe" link --manifest "$base\AndroidManifest.xml" -I $android -A "$base\assets" -o "$base\build\unsigned.apk" --min-sdk-version 26 --target-sdk-version 32
 if($LASTEXITCODE){throw 'APK packaging failed'}
@@ -51,8 +51,10 @@ if(!(Test-Path -LiteralPath $SigningKeyPath)){
  & "$jdk\bin\keytool.exe" -genkeypair -keystore $SigningKeyPath -storepass:env LIVING_PLAYER_SIGNING_PASSWORD -keypass:env LIVING_PLAYER_SIGNING_PASSWORD -alias player -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=Living Player Local Build'
  if($LASTEXITCODE){throw 'Signing key failed'}
 }
-& "$tools\apksigner.bat" sign --ks $SigningKeyPath --ks-pass env:LIVING_PLAYER_SIGNING_PASSWORD --key-pass env:LIVING_PLAYER_SIGNING_PASSWORD --out $outputFile "$base\build\aligned.apk"
+& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" sign --ks $SigningKeyPath --ks-pass env:LIVING_PLAYER_SIGNING_PASSWORD --key-pass env:LIVING_PLAYER_SIGNING_PASSWORD --out "$base\build\signed.apk" "$base\build\aligned.apk"
 if($LASTEXITCODE){throw 'Signing failed'}
-& "$tools\apksigner.bat" verify $outputFile
+& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" verify "$base\build\signed.apk"
 if($LASTEXITCODE){throw 'APK verification failed'}
+# Keep non-ASCII output names out of the Java launcher on non-Chinese Windows.
+Copy-Item -LiteralPath "$base\build\signed.apk" -Destination $outputFile -Force
 Get-Item $outputFile | Select-Object Name,Length
