@@ -54,8 +54,10 @@ if(!(Test-Path -LiteralPath $SigningKeyPath)){
  & "$jdk\bin\keytool.exe" -genkeypair -keystore $SigningKeyPath -storepass:env LIVING_PLAYER_SIGNING_PASSWORD -keypass:env LIVING_PLAYER_SIGNING_PASSWORD -alias player -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=Living Player Local Build'
  if($LASTEXITCODE){throw 'Signing key failed'}
 }
-& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" sign --ks $SigningKeyPath --ks-pass env:LIVING_PLAYER_SIGNING_PASSWORD --key-pass env:LIVING_PLAYER_SIGNING_PASSWORD --out $outputFile "$base\build\aligned.apk"
+& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" sign --ks $SigningKeyPath --ks-pass env:LIVING_PLAYER_SIGNING_PASSWORD --key-pass env:LIVING_PLAYER_SIGNING_PASSWORD --out "$base\build\signed.apk" "$base\build\aligned.apk"
 if($LASTEXITCODE){throw 'Signing failed'}
-& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" verify $outputFile
+& "$jdk\bin\java.exe" -jar "$tools\lib\apksigner.jar" verify "$base\build\signed.apk"
 if($LASTEXITCODE){throw 'APK verification failed'}
+# Keep non-ASCII output names out of the Java launcher on non-Chinese Windows.
+Copy-Item -LiteralPath "$base\build\signed.apk" -Destination $outputFile -Force
 Get-Item $outputFile | Select-Object Name,Length

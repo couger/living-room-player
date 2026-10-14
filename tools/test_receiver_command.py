@@ -27,12 +27,11 @@ class CommandTimeoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             probe = Path(directory) / "CommandProbe.java"
             probe.write_text(harness, encoding="utf-8")
-            subprocess.run([javac, str(probe)], check=True, capture_output=True)
-            if os.name == "nt":
-                shell = str(Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe")
-                commands = [[shell, "-NoProfile", "-Command", "Write-Output probe-ok"], [shell, "-NoProfile", "-Command", "Start-Sleep -Seconds 20"]]
-            else:
-                commands = [["sh", "-c", "echo probe-ok"], ["sleep", "20"]]
+            child = Path(directory) / "ChildProbe.java"
+            child.write_text('public class ChildProbe {public static void main(String[] args) throws Exception {if(args[0].equals("sleep")) Thread.sleep(20000); else System.out.println("probe-ok");}}', encoding="utf-8")
+            subprocess.run([javac, str(probe), str(child)], check=True, capture_output=True)
+            # Test command execution, not the host shell's cold-start time.
+            commands = [[java, "-cp", directory, "ChildProbe", mode] for mode in ("echo", "sleep")]
             output = []
             for command in commands:
                 result = subprocess.run([java, "-cp", directory, "CommandProbe", *command], check=True, capture_output=True, text=True, timeout=14)

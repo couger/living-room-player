@@ -4,7 +4,7 @@
 
 ## 开发与检查
 
-使用 JDK 17、Python 3.13、Node.js 22，以及 README 中列出的 Android SDK。设置 `JAVA_HOME` 后运行：
+使用 Windows、PowerShell 7、JDK 17、Python 3.13、Node.js 22，以及 README 中列出的 Android SDK。设置 `JAVA_HOME` 后运行：
 
 ```powershell
 python -m pip install -r tools/web-requirements.txt
