@@ -8,7 +8,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $base=$PSScriptRoot
-$outputFile="$base\..\..\outputs\客厅播放器-v0.9.3.apk"
+$outputFile="$base\..\..\outputs\客厅播放器-v0.9.4.apk"
 if(!$JdkPath -or !$SdkPath){throw 'Set JAVA_HOME and ANDROID_SDK_ROOT, or pass -JdkPath and -SdkPath.'}
 $jdk=$JdkPath
 $tools=Join-Path (Join-Path $SdkPath 'build-tools') $BuildToolsVersion

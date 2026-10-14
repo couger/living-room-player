@@ -26,6 +26,7 @@ public class ReceiverServer {
  static String screen(){return screenState;}
  static boolean sleeping(String state){return state.equals("Asleep");}
  static String read(String path){return hdmi;}
+ static String displayOutput(){return hdmi;}
  static long requestPlayback(String pkg,boolean toggle){return plays.incrementAndGet();}
 ''' + handler + '''
  static void check(boolean ok){if(!ok)throw new AssertionError();}

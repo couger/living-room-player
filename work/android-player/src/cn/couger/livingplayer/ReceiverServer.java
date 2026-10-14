@@ -120,12 +120,12 @@ public final class ReceiverServer {
  }catch(Exception ignored){return new int[]{1080,2400,0};}}
  static JSONObject status(boolean admin)throws Exception{
   String b="/sys/class/power_supply/battery/",u="/sys/class/power_supply/usb/";int[] size=dimensions();
-  return new JSONObject().put("version","0.9.3").put("deviceType",BOX?"box":"phone").put("batteryAvailable",!BOX).put("videoMode",BOX?"snapshot":"h264").put("socTemp",number("/sys/class/thermal/thermal_zone0/temp",-1)).put("pairing",admin?Pairing.list():new JSONArray()).put("capacity",number(b+"capacity",-1)).put("temp",number(b+"temp",-1)).put("current",number(b+"current_now",0)).put("voltage",number(b+"voltage_now",0))
+  return new JSONObject().put("version","0.9.4").put("deviceType",BOX?"box":"phone").put("batteryAvailable",!BOX).put("videoMode",BOX?"snapshot":"h264").put("socTemp",number("/sys/class/thermal/thermal_zone0/temp",-1)).put("pairing",admin?Pairing.list():new JSONArray()).put("capacity",number(b+"capacity",-1)).put("temp",number(b+"temp",-1)).put("current",number(b+"current_now",0)).put("voltage",number(b+"voltage_now",0))
    .put("batteryStatus",read(b+"status")).put("usbOnline",number(u+"online",-1)).put("usbPresent",number(u+"present",-1)).put("usbType",read(u+"real_type"))
    .put("inputVoltage",number(u+"voltage_now",0)).put("inputCurrent",number(u+"input_current_now",0)).put("disabled",number(VOTE+"force_active",-1))
    .put("owned",OWNED.exists()).put("reason",reason).put("fault",fault).put("lastTick",lastTick).put("screen",screen()).put("addresses",addresses()).put("usbDevices",usbDevices())
    .put("config",new JSONObject(config.toString())).put("streaming",streaming.get()).put("width",size[0]).put("height",size[1]).put("rotation",size[2]).put("videoBytes",videoBytes.get())
-   .put("keyListenerReady",admin?Boolean.valueOf(BOX&&PhysicalInputMonitor.ready()):null).put("keyInspection",admin?KeyInspection.status():null).put("displayOnlyOffSupported",BOX&&new File("/sys/class/drm/card0-HDMI-A-1/dpms").exists()).put("displayOutput",BOX?read("/sys/class/drm/card0-HDMI-A-1/dpms"):"internal")
+   .put("keyListenerReady",admin?Boolean.valueOf(BOX&&PhysicalInputMonitor.ready()):null).put("keyInspection",admin?KeyInspection.status():null).put("displayOnlyOffSupported",BOX&&new File("/sys/class/drm/card0-HDMI-A-1/dpms").exists()).put("displayOutput",displayOutput())
    .put("mediaStatusSupported",true).put("mediaIntentSupported",true).put("audioOnlySupported",BOX).put("mediaToggleSupported",true).put("playbackState",MediaActions.state(config.optString("playerPackage",""))).put("playbackBusy",startingPlayback.get()).put("mediaRequestId",mediaRequestId.get())
    .put("playbackRequest",config.optString("playerPackage","").equals(playbackPackage)?playbackRequest:"").put("remoteCueRequested",remoteCueActive).put("localInputAgeMs",localInputAt==0?-1:Math.max(0,System.currentTimeMillis()-localInputAt)).put("remoteControlActive",System.currentTimeMillis()<remoteLeaseUntil).put("localInputAt",localInputAt).put("capturedKey",admin?capturedKey:null).put("keyCaptureSeconds",admin?Long.valueOf(Math.max(0,(captureKeyUntil-System.currentTimeMillis()+999)/1000)):null).put("playerName",MediaActions.name(config.optString("playerPackage",""))).put("playerPackage",config.optString("playerPackage","")).put("oneTapKey",config.optString("oneTapKey",""));
  }
@@ -135,7 +135,7 @@ public final class ReceiverServer {
   if(active==remoteCueActive||active&&now<nextCueRetry)return;
   try{String result;if(active)result=command("am","start-foreground-service","--user","0","-n","cn.couger.livingplayer/.CueOverlayService","--ez","active","true");else result=command("am","stopservice","--user","0","-n","cn.couger.livingplayer/.CueOverlayService");if(result.contains("Error:"))throw new IOException("cue service failed");remoteCueActive=active;remoteCuePid=active?cueProcess():"";nextCueCheck=now+5000;nextCueRetry=0;}catch(Exception ignored){nextCueRetry=now+5000;}
  }
- static void physicalInput(String key){localInputAt=System.currentTimeMillis();if(System.currentTimeMillis()<captureKeyUntil){if(KeyBinding.accepts(key)){capturedKey=key;captureKeyUntil=0;}return;}if(!key.equals(config.optString("oneTapKey",""))||config.optString("playerPackage","").isEmpty())return;boolean screenOff=sleeping(screen()),hdmiOff=BOX&&read("/sys/class/drm/card0-HDMI-A-1/dpms").equalsIgnoreCase("Off");String pkg=config.optString("playerPackage","");if(!screenOff&&!hdmiOff&&!MediaActions.active(MediaActions.state(pkg)))return;new Thread(()->{try{requestPlayback(pkg,true);}catch(Exception ignored){}} ,"remote-one-tap").start();}
+ static void physicalInput(String key){localInputAt=System.currentTimeMillis();if(System.currentTimeMillis()<captureKeyUntil){if(KeyBinding.accepts(key)){capturedKey=key;captureKeyUntil=0;}return;}if(!key.equals(config.optString("oneTapKey",""))||config.optString("playerPackage","").isEmpty())return;boolean screenOff=sleeping(screen()),hdmiOff=BOX&&displayOutput().equalsIgnoreCase("Off");String pkg=config.optString("playerPackage","");if(!screenOff&&!hdmiOff&&!MediaActions.active(MediaActions.state(pkg)))return;new Thread(()->{try{requestPlayback(pkg,true);}catch(Exception ignored){}} ,"remote-one-tap").start();}
  static void physicalInput(String key,String source){if(KeyInspection.record(key,source)){localInputAt=System.currentTimeMillis();return;}physicalInput(key);}
  static void beginKeyCapture(){KeyInspection.stop();capturedKey="";captureKeyUntil=System.currentTimeMillis()+20000;}
  static final AtomicBoolean startingPlayback=new AtomicBoolean();
@@ -153,7 +153,7 @@ public final class ReceiverServer {
    if(audioOnly){if(!desired.equals("paused")||!sleeping(screen()))wake(false);synchronized(powerLock){displayPower(false);}}
    outcome=!desired.isEmpty()?MediaActions.desired(pkg,desired):toggle?MediaActions.toggle(pkg):MediaActions.oneTap(pkg);
   }catch(Exception e){Throwable cause=e;while(cause.getCause()!=null)cause=cause.getCause();outcome="播放请求失败："+(cause.getMessage()==null?"系统媒体会话暂不可用":cause.getMessage());}
-  if(audioOnly)try{synchronized(powerLock){displayPower(false);}if(!read("/sys/class/drm/card0-HDMI-A-1/dpms").equalsIgnoreCase("Off"))throw new IOException("HDMI 未确认关闭");}catch(Exception e){outcome="播放请求失败：音乐状态可能已变化，但 HDMI 关闭未确认";}
+  if(audioOnly)try{synchronized(powerLock){displayPower(false);}if(!displayOutput().equalsIgnoreCase("Off"))throw new IOException("HDMI 未确认关闭");}catch(Exception e){outcome="播放请求失败：音乐状态可能已变化，但 HDMI 关闭未确认";}
   if(audioOnly&&outcome.startsWith("所选 APP 已")&&!desired.isEmpty()){try{Thread.sleep(250);String state=MediaActions.state(pkg);if(desired.equals("playing")&&!state.equals("playing")||desired.equals("paused")&&(state.equals("playing")||state.equals("buffering")||state.equals("connecting")))outcome="播放请求失败：HDMI 关闭后音乐状态未保持，请检查音乐 APP";}catch(Exception e){outcome="播放请求失败：最终音乐状态未确认";}}
   playbackRequest=outcome;startingPlayback.set(false);
   },"media-playback");worker.setDaemon(true);worker.start();return id;
@@ -190,14 +190,35 @@ public final class ReceiverServer {
  static int coord(JSONObject p,String key)throws Exception{int n=p.getInt(key);if(n<0||n>5000)throw new IOException("coordinate out of range");return n;}
  static final Object powerLock=new Object();
  static File displayOwned(){return new File(ROOT,"display-off-owned");}
+ static volatile long hdmiReadAt=0;
+ static volatile String hdmiPower="";
+ static String displayDump()throws Exception{return command("sh","-c","dumpsys SurfaceFlinger | toybox grep -E 'DisplayId=|^Display [0-9]+ \\((internal|external)|powerMode='");}
+ static String displayOutput(){
+  if(!BOX)return "internal";
+  if(!read("/sys/class/drm/card0-HDMI-A-1/status").equals("disconnected"))return read("/sys/class/drm/card0-HDMI-A-1/dpms");
+  // Disconnected Rockchip connectors can leave the DRM dpms file at On.
+  if(System.currentTimeMillis()-hdmiReadAt<2000)return hdmiPower;
+  synchronized(powerLock){try{
+   String dump=displayDump();Class<?> c=Class.forName("android.view.SurfaceControl");
+   long[] ids=(long[])c.getDeclaredMethod("getPhysicalDisplayIds").invoke(null);
+   hdmiPower=HdmiDisplay.power(dump,HdmiDisplay.select(ids,dump));
+  }catch(Exception e){hdmiPower="";}hdmiReadAt=System.currentTimeMillis();return hdmiPower;}
+ }
  static void displayPower(boolean on)throws Exception{
   if(!BOX)throw new IOException("此显示输出操作仅用于已适配盒子");
   Class<?> c=Class.forName("android.view.SurfaceControl");
   long[] ids=(long[])c.getDeclaredMethod("getPhysicalDisplayIds").invoke(null);
-  if(ids.length!=1)throw new IOException("显示设备数量变化，未切换 HDMI 输出");
-  Object token=c.getDeclaredMethod("getPhysicalDisplayToken",long.class).invoke(null,ids[0]);
-  if(!on)write(displayOwned().getPath(),"owned");
+  long id=HdmiDisplay.select(ids,displayDump());
+  String owned=read(displayOwned().getPath());
+  if(on&&!owned.isEmpty()&&!owned.equals("owned")&&!owned.equals(Long.toString(id)))throw new IOException("HDMI 设备映射已变化，未恢复其他输出");
+  Object token=c.getDeclaredMethod("getPhysicalDisplayToken",long.class).invoke(null,id);
+  if(token==null)throw new IOException("HDMI 显示设备已断开，请重试");
+  if(!on)atomic(displayOwned(),Long.toString(id));
   c.getDeclaredMethod("setDisplayPowerMode",android.os.IBinder.class,int.class).invoke(null,token,on?2:0);
+  hdmiReadAt=0;
+  String confirmed=HdmiDisplay.power(displayDump(),id);
+  if(!confirmed.equals(on?"On":"Off"))throw new IOException("HDMI 显示电源切换未确认");
+  hdmiPower=confirmed;hdmiReadAt=System.currentTimeMillis();
   if(on)displayOwned().delete();
  }
  static void restoreDisplay()throws Exception{if(BOX&&displayOwned().exists())displayPower(true);}

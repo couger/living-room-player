@@ -15,5 +15,5 @@ public final class QuickPlayTile extends TileService {
   // Receiver decides play or pause from its current selected media session.
   QuickPlay.start(this,-1,true);
  }
- void paint(){Tile tile=getQsTile();if(tile==null)return;String pin=QuickPlay.target(this,-1);int color=QuickPlay.color(this,pin);tile.setIcon(Icon.createWithBitmap(QuickPlay.icon(color,!QuickPlay.playing(this,pin))));tile.setState(color==0xff70dba1?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);tile.setLabel(QuickPlay.playing(this,pin)?"暂停":"播放");tile.setContentDescription("已选播放器的播放／暂停；高亮表示最近检查可连接");tile.updateTile();}
+ void paint(){Tile tile=getQsTile();if(tile==null)return;String pin=QuickPlay.target(this,-1);int color=QuickPlay.color(this,pin);boolean playing=QuickPlay.playing(this,pin);tile.setIcon(Icon.createWithBitmap(QuickPlay.icon(color,!playing)));tile.setState(playing?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);tile.setLabel(playing?"暂停":"播放");tile.setContentDescription(playing?"已选播放器正在播放；点击暂停":"已选播放器未播放；点击连接并播放");tile.updateTile();}
 }
