@@ -1,0 +1,29 @@
+name: 问题反馈
+description: 提交可复现的功能问题，勿包含连接码或私人日志
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本及来源
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 设备与系统
+      description: 控制端／受控端型号、Android 版本及 ROOT 方式；不要填写公网地址或账号
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤、预期和实际结果
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隐私检查
+      options:
+        - label: 我已移除连接码、凭据、账号和私人屏幕内容；安全漏洞不在公开 Issue 中披露
+          required: true
