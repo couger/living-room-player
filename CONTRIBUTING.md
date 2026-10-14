@@ -10,6 +10,7 @@
 python -m pip install -r tools/web-requirements.txt
 python tools/check.py
 ./tools/format-java.ps1 -Check
+./tools/check-secrets.ps1
 ./work/android-player/build.ps1
 ./work/android-diagnostics/build.ps1
 ```
@@ -29,3 +30,5 @@ Java 源码采用 google-java-format 1.22.0 的格式（保留长字符串，不
 功能问题请通过仓库 Issues 提交，包含应用版本、设备型号、Android 版本、复现步骤、预期和实际行为。先脱敏，勿上传完整系统日志。安全问题按 SECURITY.md 私下报告。
 
 提交贡献意味着你有权按仓库 MIT 许可证提供这些修改；第三方代码与素材须保留原许可证和来源。
+
+敏感信息检查使用固定版本和 SHA256 的 Gitleaks，扫描本地 Git 历史；它不扫描尚未提交的工作文件，也不能识别全部私人信息。提交前仍需审查暂存内容，公开前还应人工检查日志、地址和账号等信息。

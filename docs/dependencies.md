@@ -14,3 +14,5 @@ PC 工具通过 pip 单独安装以下依赖，保持各自许可证：
 构建使用用户或 CI 安装的 OpenJDK、Android SDK；格式整理工具来自 [google-java-format](https://github.com/google/google-java-format)，采用 Apache-2.0 许可证。工具 JAR 下载后验证固定 SHA256，保存在忽略的本地目录，不提交或打包进 APK。
 
 引入新库、图标或素材时应补充来源和许可证，并确认是否随发行物分发。
+
+敏感信息检查使用 [Gitleaks](https://github.com/gitleaks/gitleaks)（MIT），固定版本与下载文件 SHA256，仅用于开发和 CI，不随 APK 分发。
