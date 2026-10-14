@@ -2,6 +2,10 @@
 
 将 Android 手机、平板或兼容盒子作为家庭局域网音乐播放器。控制端和受控端使用同一个轻量原生 APK，另提供在 PC 本机运行的 WEB 工具。当前版本 **0.9.4**。
 
+**项目状态：实验性测试版本。** 面向愿意自行配置 ROOT 设备的家庭用户，尚无正式 GitHub Release；版本号不代表全面兼容。已适配 Redmi Note 9 Pro 与 HK1 RBOX K8 / RK3528，其他设备需自行验证。源码采用 [MIT 许可证](LICENSE)。
+
+控制关系：Android 控制端或 PC 本地 WEB 工具 → 家庭网络中的受控端 ROOT 助手 → 音乐 APP／屏幕操作。音乐仍由受控端的音乐 APP 播放，控制端不传输音乐账号信息。
+
 ## 功能
 
 - 多设备配对、六位码身份核对、TLS 证书固定、独立授权撤销。
@@ -20,6 +24,8 @@
 3. 在受控端本机选择音乐 APP。首次使用时需先在音乐 APP 中准备可播放的曲目。
 4. 日常可以关闭系统 USB／无线调试；它们不承担应用控制连接。
 
+首次安装、后台权限、升级和卸载见 [安装与移除](docs/installation.md)。源码自行构建的 APK 可能与别人提供的 APK 签名不同，不能直接覆盖安装；不要为升级盲目卸载已有版本。
+
 PC 工具需要 Python 和 `cryptography`：
 
 ```powershell
@@ -31,16 +37,21 @@ python tools/web-debug-toolkit.py --port 8760
 
 ## 构建与测试
 
-需要 JDK 17、Android SDK platform `android-34`、build-tools `36.0.0`，设置 `JAVA_HOME` 和 `ANDROID_SDK_ROOT` 后运行：
+需要 PowerShell 7、JDK 17、Android SDK platform `android-34`、build-tools `36.0.0`，设置 `JAVA_HOME` 和 `ANDROID_SDK_ROOT` 后运行：
+
+当前 APK 构建入口面向 Windows 上的 PowerShell 7（`pwsh`）；尚未提供 Linux／macOS 构建脚本。
 
 ```powershell
 ./work/android-player/build.ps1
 ./work/android-diagnostics/build.ps1
-python -m unittest discover -s tools -p 'test_*.py'
-node tools/test_web_controls.cjs
+python tools/check.py
 ```
 
 产物写入 `outputs/`。签名密钥及密码保存在本地，不提交版本库。覆盖安装必须沿用原签名；升级受控端后可在本机点“启动／恢复服务”更新后台助手。
+
+完整检查另需 Python 3.13、Node.js 22 和上述 PC 依赖；`tools/check.py` 不允许跳过 Java 测试。自动构建只使用临时签名，不发布 APK。维护流程见 [贡献说明](CONTRIBUTING.md) 和 [发布检查](docs/releasing.md)。
+
+代码职责与信任边界见 [架构说明](docs/architecture.md)，依赖来源见 [外部依赖](docs/dependencies.md)。
 
 ## 源码目录
 
@@ -62,3 +73,5 @@ node tools/test_web_controls.cjs
 - [盒子兼容性](docs/android-box.md)、[独立故障记录](docs/system-diagnostics.md)
 
 凭据、设备档案、日志、截图、固件、媒体文件、构建产物和本地开发记录不属于公开源码。不要将控制服务、设备发现或 ADB 端口映射到公网。屏幕控制和 ROOT 助手具有较高权限，仅用于可信设备和网络。
+
+功能反馈请提交脱敏后的 Issue；安全问题按 [安全说明](SECURITY.md) 私下报告。版本变化见 [CHANGELOG](CHANGELOG.md)。本项目不包含音乐内容，不隶属于音乐 APP、手机或盒子厂商。

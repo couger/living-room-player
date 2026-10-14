@@ -4,3 +4,6 @@
 *.html text eol=lf
 *.md text eol=lf
 *.ps1 text eol=crlf
+*.py text eol=lf
+*.yml text eol=lf
+*.txt text eol=lf
