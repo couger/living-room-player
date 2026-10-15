@@ -26,6 +26,24 @@ public final class QuickPlayStateCheck {
   check(QuickPlayState.completed(4,5,false,"所选 APP 已暂停")==-1);
   check(QuickPlayState.completed(0,0,false,"所选 APP 已暂停")==-1);
   check(QuickPlayState.completed(4,4,false,"播放请求失败：暂停未确认")==-1);
+  QuickPlayState.Snapshot view=QuickPlayState.snapshot(true,true,true,"playing",1000,1000);
+  check(view.online&&view.playing&&view.remainingMillis==120001);
+  view=QuickPlayState.snapshot(true,true,true,"paused",1000,1000);
+  check(view.online&&!view.playing);
+  view=QuickPlayState.snapshot(true,true,true,"playing",121000,1000);
+  check(view.online&&view.playing&&view.remainingMillis==1);
+  view=QuickPlayState.snapshot(true,true,true,"playing",121001,1000);
+  check(!view.online&&!view.playing&&view.remainingMillis==0);
+  view=QuickPlayState.snapshot(true,false,true,"playing",1001,1000);
+  check(!view.online&&!view.playing);
+  view=QuickPlayState.snapshot(false,true,true,"playing",1001,1000);
+  check(!view.online&&!view.playing&&view.remainingMillis==0);
+  view=QuickPlayState.snapshot(true,true,false,"playing",1001,1000);
+  check(!view.online&&!view.playing);
+  view=QuickPlayState.snapshot(true,true,true,"playing",999,1000);
+  check(!view.online&&!view.playing&&view.remainingMillis==0);
+  view=QuickPlayState.snapshot(true,true,true,"unknown",1001,1000);
+  check(view.online&&!view.playing);
   System.out.println(checks+" quick-play protocol checks passed");
  }
 }
