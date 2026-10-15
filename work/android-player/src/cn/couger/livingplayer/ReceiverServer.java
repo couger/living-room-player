@@ -315,7 +315,7 @@ public final class ReceiverServer {
     String b = "/sys/class/power_supply/battery/", u = "/sys/class/power_supply/usb/";
     int[] size = dimensions();
     return new JSONObject()
-        .put("version", "0.9.4")
+        .put("version", "0.9.5")
         .put("deviceType", BOX ? "box" : "phone")
         .put("batteryAvailable", !BOX)
         .put("videoMode", BOX ? "snapshot" : "h264")
