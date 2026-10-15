@@ -128,7 +128,7 @@ public final class MainActivity extends Activity {
       }
     } else {
       setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-      head.addView(text("0.9.4", 12));
+      head.addView(text("0.9.5", 12));
     }
   }
 
@@ -2218,6 +2218,7 @@ public final class MainActivity extends Activity {
 
   public void onResume() {
     super.onResume();
+    QuickPlay.refresh(this);
     visible = true;
     poll();
     startVideo();

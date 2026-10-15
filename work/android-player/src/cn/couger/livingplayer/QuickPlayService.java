@@ -59,7 +59,6 @@ public final class QuickPlayService extends Service {
   }
 
   void run(String pin, boolean play) {
-    final boolean wantPause = QuickPlay.playing(this, pin);
     boolean connected = false;
     DeviceClient client = null;
     try {
@@ -82,6 +81,8 @@ public final class QuickPlayService extends Service {
       connected = true;
       QuickPlay.record(this, pin, status);
       if (!play) return;
+      // A stale shortcut is not evidence of what the receiver is currently doing.
+      boolean wantPause = QuickPlayState.playing(status.optString("playbackState", "unknown"));
       if (status.optString("playerPackage").isEmpty()) throw new IOException("受控端未配置音乐 APP");
       if (!status.optBoolean("mediaToggleSupported")) throw new IOException("请先更新受控端以支持播放／暂停");
       boolean audioOnly = QuickPlay.audioOnly(this, pin);

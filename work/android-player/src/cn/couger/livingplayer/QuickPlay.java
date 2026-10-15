@@ -4,6 +4,7 @@ import android.app.*;
 import android.appwidget.AppWidgetManager;
 import android.content.*;
 import android.graphics.*;
+import android.net.*;
 import android.os.*;
 import android.widget.*;
 import org.json.*;
@@ -49,24 +50,52 @@ final class QuickPlay {
             .putExtra("widget", widget));
   }
 
-  static int color(Context c, String pin) {
-    long at = prefs(c).getLong("quickAt." + pin, 0);
-    if (profile(c, pin) == null || !QuickPlayState.fresh(System.currentTimeMillis(), at))
-      return 0xff718095;
-    return prefs(c).getBoolean("quickOnline." + pin, false) ? 0xff70dba1 : 0xffb1b9c5;
+  static boolean localNetwork(Context c) {
+    ConnectivityManager manager =
+        (ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
+    if (manager == null) return false;
+    try {
+      // A local Wi-Fi without Internet can coexist with default mobile data.
+      for (Network network : manager.getAllNetworks()) {
+        NetworkCapabilities caps = manager.getNetworkCapabilities(network);
+        if (caps != null
+            && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))) return true;
+      }
+    } catch (SecurityException ignored) {
+    }
+    return false;
+  }
+
+  static QuickPlayState.Snapshot snapshot(Context c, String pin) {
+    android.content.SharedPreferences p = prefs(c);
+    boolean configured = profile(c, pin) != null;
+    return QuickPlayState.snapshot(
+        configured,
+        configured && localNetwork(c),
+        p.getBoolean("quickOnline." + pin, false),
+        p.getString("quickState." + pin, "unknown"),
+        System.currentTimeMillis(),
+        p.getLong("quickAt." + pin, 0));
+  }
+
+  static int color(QuickPlayState.Snapshot state) {
+    return state.online ? 0xff70dba1 : 0xff718095;
   }
 
   static boolean playing(Context c, String pin) {
-    return profile(c, pin) != null
-        && prefs(c).getBoolean("quickOnline." + pin, false)
-        && QuickPlayState.playing(prefs(c).getString("quickState." + pin, "unknown"));
+    return snapshot(c, pin).playing;
   }
 
-  static Bitmap icon(int color, boolean play) {
+  static Bitmap icon(int color, boolean play, boolean confirmed) {
     Bitmap b = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888);
     Canvas canvas = new Canvas(b);
     Paint p = new Paint(3);
     p.setColor(color);
+    if (!confirmed) {
+      p.setStyle(Paint.Style.STROKE);
+      p.setStrokeWidth(6);
+    }
     if (play) {
       Path path = new Path();
       path.moveTo(30, 20);
@@ -156,12 +185,15 @@ final class QuickPlay {
         new RemoteViews(
             c.getPackageName(),
             res(c, "layout", wide ? "quick_play_wide_widget" : "quick_play_widget"));
-    boolean playing = playing(c, pin);
-    views.setImageViewBitmap(res(c, "id", "quick_play"), icon(color(c, pin), !playing));
+    QuickPlayState.Snapshot state = snapshot(c, pin);
+    views.setImageViewBitmap(
+        res(c, "id", "quick_play"), icon(color(state), !state.playing, state.online));
     String name = entry == null ? "未配置设备" : entry.optString("name");
     views.setContentDescription(
         res(c, "id", "quick_play"),
-        name + (playing ? "，暂停" : "，连接并播放") + "；绿色表示最近检查可连接，灰色表示未确认或不可达");
+        name
+            + (state.playing ? "，暂停" : state.online ? "，待播放" : "，待连接")
+            + "；实心表示最近检查可连接，空心灰色表示未确认或不可达");
     views.setOnClickPendingIntent(res(c, "id", "quick_play"), task(c, id, true));
     if (wide) {
       views.setImageViewBitmap(res(c, "id", "quick_open"), openIcon());
@@ -171,10 +203,54 @@ final class QuickPlay {
     AppWidgetManager.getInstance(c).updateAppWidget(id, views);
   }
 
-  static void refresh(Context c) {
+  static synchronized void refresh(Context c) {
     for (int id : widgets(c)) widget(c, id);
     c.sendBroadcast(
         new Intent("cn.couger.livingplayer.QUICK_STATE").setPackage(c.getPackageName()));
+    if (!target(c, -1).isEmpty())
+      android.service.quicksettings.TileService.requestListeningState(
+          c, new ComponentName(c, QuickPlayTile.class));
+    scheduleExpiry(c);
+  }
+
+  static void scheduleExpiry(Context c) {
+    AlarmManager alarms = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+    if (alarms == null) return;
+    PendingIntent expired =
+        PendingIntent.getBroadcast(
+            c,
+            0,
+            new Intent(c, QuickPlayExpiry.class).setAction(QuickPlayExpiry.ACTION),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    java.util.Set<String> pins = new java.util.HashSet<>();
+    pins.add(target(c, -1));
+    for (int id : widgets(c)) pins.add(target(c, id));
+    long now = System.currentTimeMillis(), delay = Long.MAX_VALUE;
+    for (String pin : pins) {
+      QuickPlayState.Snapshot state = snapshot(c, pin);
+      if (state.online && state.remainingMillis > 0) delay = Math.min(delay, state.remainingMillis);
+    }
+    if (delay == Long.MAX_VALUE) {
+      alarms.cancel(expired);
+      prefs(c).edit().remove("quickExpiryAt").apply();
+      return;
+    }
+    long scheduled = prefs(c).getLong("quickExpiryAt", 0);
+    if (scheduled > now && scheduled <= now + delay) return;
+    // One non-wakeup, inexact local repaint. No polling, network work or exact-alarm permission.
+    alarms.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + delay, expired);
+    prefs(c).edit().putLong("quickExpiryAt", now + delay).apply();
+  }
+
+  static void invalidate(Context c) {
+    android.content.SharedPreferences.Editor edit = prefs(c).edit();
+    for (String key : prefs(c).getAll().keySet())
+      if (key.startsWith("quickAt.")
+          || key.startsWith("quickOnline.")
+          || key.startsWith("quickState.")
+          || key.equals("quickExpiryAt")) edit.remove(key);
+    edit.apply();
+    refresh(c);
   }
 
   static void failure(Context c) {
