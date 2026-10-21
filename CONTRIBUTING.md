@@ -11,6 +11,7 @@ python -m pip install -r tools/web-requirements.txt
 python tools/check.py
 ./tools/format-java.ps1 -Check
 ./tools/check-secrets.ps1
+python tools/check-public-metadata.py
 ./work/android-player/build.ps1
 ./work/android-diagnostics/build.ps1
 ```
@@ -22,6 +23,8 @@ Java 源码采用 google-java-format 1.22.0 的格式（保留长字符串，不
 ## 提交内容
 
 只提交应用源码、必要工具、文档和测试。禁止提交签名密钥、连接码、设备档案、系统日志、截图中的私人信息、音乐、固件、本地绝对路径及开发对话。测试使用合成凭据和示例地址。
+
+提交作者和提交者统一使用 GitHub 隐私邮箱（`…@users.noreply.github.com`；GitHub 自动提交的 `noreply@github.com` 也允许）。在 GitHub 的邮箱设置中启用隐私邮箱，再核对网页合并生成的作者身份；本机 Git 配置不会改变 GitHub 网页合并身份。自动检查扫描已获取的全部引用，发现其他邮箱时只报告提交编号，不把邮箱再次写进构建日志。
 
 新增控制能力应明确由受控端配置还是控制端执行，不增加不必要授权。ROOT、充电、HDMI、CEC、实体按键和待机相关改动必须注明实际设备与固件，并与模拟测试结果区分。
 
