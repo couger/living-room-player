@@ -55,3 +55,21 @@ jobs:
           ./work/android-diagnostics/build.ps1
       - name: Verify build does not modify tracked source
         run: git diff --exit-code
+      - name: Build Windows desktop WEB tool
+        run: |
+          python -m pip install -r tools/web-desktop-build-requirements.txt
+          if ($LASTEXITCODE) { throw 'Desktop build dependency installation failed' }
+          ./tools/build-web-desktop.ps1
+      - name: Check packaged desktop resources and pairing crypto
+        shell: pwsh
+        run: |
+          $resultPath=Join-Path $PWD 'local/web-desktop-build/ci-self-test.json'
+          $testData=Join-Path $PWD 'local/web-desktop-build/ci-test-data'
+          New-Item -ItemType Directory -Force $testData | Out-Null
+          $exe=Join-Path $PWD 'outputs/PC-WEB-EXE/LivingRoomWeb/LivingRoomWeb.exe'
+          $process=Start-Process -FilePath $exe -ArgumentList @('--self-test','--data-dir',('"'+$testData+'"'),'--result',('"'+$resultPath+'"')) -PassThru -WindowStyle Hidden
+          if (!$process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged desktop self-test timed out' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $resultPath)) { throw 'Packaged desktop self-test did not complete' }
+          $result=Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json
+          if (!$result.ok) { throw 'Packaged desktop self-test failed' }
+          git diff --exit-code

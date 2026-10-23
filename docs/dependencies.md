@@ -16,3 +16,5 @@ PC 工具通过 pip 单独安装以下依赖，保持各自许可证：
 引入新库、图标或素材时应补充来源和许可证，并确认是否随发行物分发。
 
 敏感信息检查使用 [Gitleaks](https://github.com/gitleaks/gitleaks)（MIT），固定版本与下载文件 SHA256，仅用于开发和 CI，不随 APK 分发。
+
+Windows WEB 桌面版使用 Python 自带 Tk 管理窗口；EXE 由 PyInstaller 6.19.0 构建，携带 Python（PSF）、Tcl/Tk 及 PC 加密依赖，保留依赖包中的许可证文件。PyInstaller 为 GPL-2.0-or-later，具有允许分发生成应用的 bootloader exception；参见 https://pyinstaller.org/en/stable/license.html 。它不进入 Android APK。构建依赖见 `tools/web-desktop-build-requirements.txt`，不包含音乐 APP 或用户配对数据。

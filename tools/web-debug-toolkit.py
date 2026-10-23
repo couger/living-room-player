@@ -11,18 +11,24 @@ import re
 import secrets
 import socket
 import ssl
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
 STORE = ROOT / "local" / "web-toolkit" / "devices.local.json"
 LOCK = threading.RLock()
 PROFILES = {}
 CSRF = secrets.token_urlsafe(32)
 PAIRINGS = {}
 PAIR_LOCK = threading.RLock()
+
+
+def hidden_process():
+    # pythonw / windowed EXE must also hide short-lived PowerShell and icacls children.
+    return {"creationflags": 0x08000000} if os.name == "nt" else {}
 
 
 def local_address(host):
@@ -38,7 +44,7 @@ def discover():
         import subprocess
         ps = str(Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe")
         try:
-            interfaces = json.loads(subprocess.check_output([ps, "-NoProfile", "-Command", "@(Get-NetIPAddress -AddressFamily IPv4 | Select-Object IPAddress,PrefixLength) | ConvertTo-Json -Compress"], timeout=8, text=True))
+            interfaces = json.loads(subprocess.check_output([ps, "-NoProfile", "-Command", "@(Get-NetIPAddress -AddressFamily IPv4 | Select-Object IPAddress,PrefixLength) | ConvertTo-Json -Compress"], timeout=8, text=True, **hidden_process()))
             for interface in interfaces:
                 try:
                     host = local_address(interface["IPAddress"])
@@ -169,14 +175,18 @@ def rediscover_profile(profile):
     raise ValueError("未找到此设备，请检查同一网络与受控端发现开关，或手动修改 IP 地址")
 
 
-def save():
+def protect_store_directory():
     STORE.parent.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
         import subprocess
-        sid = json.loads(subprocess.check_output([str(Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-Command", "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value | ConvertTo-Json"], text=True))
-        subprocess.run(["icacls", str(STORE.parent), "/inheritance:r", "/grant:r", "*" + sid + ":(OI)(CI)F", "*S-1-5-18:(OI)(CI)F"], check=True, capture_output=True)
+        sid = json.loads(subprocess.check_output([str(Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-Command", "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value | ConvertTo-Json"], text=True, **hidden_process()))
+        subprocess.run(["icacls", str(STORE.parent), "/inheritance:r", "/grant:r", "*" + sid + ":(OI)(CI)F", "*S-1-5-18:(OI)(CI)F"], check=True, capture_output=True, **hidden_process())
     else:
         STORE.parent.chmod(0o700)
+
+
+def save():
+    protect_store_directory()
     temp = STORE.with_suffix(".tmp")
     with os.fdopen(os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
         json.dump(PROFILES, f, ensure_ascii=False)
@@ -245,6 +255,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get("Host") != origin[7:]:
                 return self.reply({"error": "仅允许本机入口"}, status=403)
             route = urlsplit(self.path)
+            if route.path == "/toolkit-health" and self.command == "GET":
+                return self.reply({"app": "living-room-player-web", "desktop": getattr(self.server, "desktop", False), "store": hashlib.sha256(os.path.normcase(str(STORE.resolve())).encode()).hexdigest()})
             if route.path == "/" and self.command == "GET":
                 page = (ROOT / "work/player-control/index.html").read_text(encoding="utf-8")
                 page = page.replace("<script>", "<script>window.toolkitToken=" + json.dumps(CSRF) + ";", 1)
@@ -341,14 +353,35 @@ class Handler(BaseHTTPRequestHandler):
             self.reply({"error": str(error) if isinstance(error, ValueError) else "连接失败，请检查设备、地址与授权"}, status=400)
 
 
+class ToolkitServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def create_server(port=8760, store=None):
+    global STORE
+    target = Path(store) if store is not None else STORE
+    profiles = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+    if not isinstance(profiles, dict):
+        raise ValueError("设备档案格式错误")
+    server = ToolkitServer(("127.0.0.1", port), Handler)
+    with LOCK:
+        STORE = target
+        PROFILES.clear()
+        PROFILES.update(profiles)
+    server.daemon_threads = True
+    return server
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8760)
     args = parser.parse_args()
-    if STORE.exists():
-        PROFILES.update(json.loads(STORE.read_text(encoding="utf-8")))
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    server.daemon_threads = True
+    server = create_server(args.port)
     print(f"本机调试工具：http://127.0.0.1:{server.server_port} ；关闭本进程即停止工具包。", flush=True)
     try:
         server.serve_forever()

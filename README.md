@@ -37,6 +37,8 @@ python tools/web-debug-toolkit.py --port 8760
 
 浏览器打开 `http://127.0.0.1:8760/`，也可运行根目录的 `启动WEB调试工具.cmd`。工具只监听本机；与受控端之间使用固定证书的 TLS。
 
+Windows 可用 `启动WEB工具（无命令行）.vbs` 隐藏命令行，或自行构建带运行环境的 EXE；两者都会自动打开浏览器，并提供停止工具的管理窗口。详见 [PC WEB 工具](docs/web-debug-toolkit.md#windows-无命令行启动与-exe)。
+
 ## 构建与测试
 
 需要 PowerShell 7、JDK 17、Android SDK platform `android-34`、build-tools `36.0.0`，设置 `JAVA_HOME` 和 `ANDROID_SDK_ROOT` 后运行：
