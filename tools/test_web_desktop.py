@@ -23,10 +23,11 @@ class DesktopToolkitTests(unittest.TestCase):
             (project / "work/player-control/index.html").touch()
             exe = project / "outputs/PC-WEB-EXE/LivingRoomWeb/LivingRoomWeb.exe"
             with patch.object(desktop.sys, "frozen", True, create=True), patch.object(desktop.sys, "executable", str(exe)):
-                self.assertEqual(desktop.default_store(), project / "local/web-toolkit/devices.local.json")
+                # Windows hosted runners may expose TEMP through an 8.3 alias.
+                self.assertEqual(desktop.default_store(), (project / "local/web-toolkit/devices.local.json").resolve())
             portable = Path(folder) / "portable/LivingRoomWeb.exe"
             with patch.object(desktop.sys, "frozen", True, create=True), patch.object(desktop.sys, "executable", str(portable)):
-                self.assertEqual(desktop.default_store(), portable.parent / "用户数据/devices.local.json")
+                self.assertEqual(desktop.default_store(), (portable.parent / "用户数据/devices.local.json").resolve())
 
     def test_packaged_flow_serves_page_and_checks_crypto_without_devices(self):
         with tempfile.TemporaryDirectory() as folder:
